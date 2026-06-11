@@ -187,7 +187,8 @@ app.post('/api/admin/process-refund', adminAuth, async (req, res) => {
   // Identify who performed this
   const performedBy = req.user ? req.user._id : "MASTER_KEY_USER";
 
-  await Donation.findByIdAndUpdate(donationId, { status: 'REFUNDED' });
+  await Donation.findByIdAndUpdate({ orderId: razorpay_order_id }, // Find the PENDING donation
+    { status: "SUCCESS", paymentId: razorpay_payment_id });
 
   // SAVE TO LEDGER
   await new Ledger({
