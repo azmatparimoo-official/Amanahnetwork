@@ -13,7 +13,12 @@ const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Disbursement = require('../models/Disbursement');
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_URL }));
+const cors = require('cors');
+app.use(cors({
+  origin: [process.env.CLIENT_URL], // Replace with your live Vercel frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 const razorpay = new Razorpay({
