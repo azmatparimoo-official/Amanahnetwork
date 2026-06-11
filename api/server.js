@@ -113,10 +113,10 @@ app.get('/api/verify/:token', async (req, res) => {
 
 // --- PAYMENT INTEGRATION ---
 app.post('/api/payment/create-order', async (req, res) => {
-  const { amount, donorEmail, projectTitle , donorName} = req.body;
+  const { amount, donorEmail, projectTitle , donorName , mobileNumber } = req.body;
 
   // Validation: Prevent empty requests from crashing the server
-  if (!amount || !donorEmail) {
+  if (!amount || !donorEmail || !donorName || !mobileNumber) {
     return res.status(400).json({ error: "Missing required donation details" });
   }
 
@@ -134,7 +134,8 @@ app.post('/api/payment/create-order', async (req, res) => {
     // 3. Save to DB
     const newDonation = new Donation({ 
         donorEmail,
-        donorName, 
+        donorName,
+        mobileNumber, 
         amount, 
         projectTitle: projectTitle || "General Donation", 
         orderId: order.id, 
