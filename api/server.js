@@ -141,7 +141,7 @@ console.log("Payment route set up successfully.");
 
 app.post("/api/payment/verify", async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donorEmail, amount } = req.body;
-  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET);
+  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
   hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
   
   if (hmac.digest("hex") === razorpay_signature) {
