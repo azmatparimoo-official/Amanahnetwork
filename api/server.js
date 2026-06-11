@@ -13,6 +13,7 @@ const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Disbursement = require('../models/Disbursement');
 const app = express();
+let isConnected = false;
 // Add this helper function at the top of your file
 const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) return;
@@ -139,34 +140,61 @@ app.post('/api/payment/create-order', async (req, res) => {
 });
 console.log("Payment route set up successfully.");
 
+// Ensure you have 'let isConnected = false;' defined at the top level of your server.js
 app.post("/api/payment/verify", async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donorEmail, amount, donorName, mobileNumber, projectTitle } = req.body;
-  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-  hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-  
-  if (hmac.digest("hex") === razorpay_signature) {
-       const newDonation = new Donation({ 
-        donorEmail, donorName, mobileNumber, amount, 
-        projectTitle, orderId: razorpay_order_id, 
-        paymentId: razorpay_payment_id, status: "SUCCESS" 
-    });
-    await newDonation.save();    
-    // INTEGRATED EMAIL LOGIC
-    try {
-      await transporter.sendMail({
+  try {
+    // 1. Database Connection Caching
+    if (!isConnected) {
+      await mongoose.connect(process.env.MONGO_URI);
+      isConnected = true;
+    }
+    // 2. Extract Data
+    const { 
+      razorpay_order_id, 
+      razorpay_payment_id, 
+      razorpay_signature, 
+      donorEmail, 
+      amount, 
+      donorName, 
+      mobileNumber, 
+      projectTitle 
+    } = req.body;
+
+    // 3. Verify Signature
+    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    
+    if (hmac.digest("hex") === razorpay_signature) {
+      // 4. Save Donation
+      const newDonation = new Donation({ 
+        donorEmail, 
+        donorName, 
+        mobileNumber, 
+        amount, 
+        projectTitle, 
+        orderId: razorpay_order_id, 
+        paymentId: razorpay_payment_id, 
+        status: "SUCCESS" 
+      });
+      await newDonation.save();    
+
+      // 5. Email Logic (Non-blocking)
+      // We don't 'await' this so the payment success returns to the user immediately
+      transporter.sendMail({
         from: '"Amanah Foundation" <amanahnetwork.official@gmail.com>',
         to: donorEmail, 
         subject: 'Donation Received!',
         html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
-      });
-      res.status(200).json({ status: "success", message: "Donation verified and email sent." });
-    } catch (emailError) {
-      console.error("Email Error:", emailError);
-      res.status(200).json({ status: "success", message: "Donation verified, but email failed." });
-    }
+      }).catch(emailError => console.error("Email Error:", emailError));
 
-  } else {
-    res.status(400).json({ error: "Invalid signature" });
+      res.status(200).json({ status: "success", message: "Donation verified and email sent." });
+
+    } else {
+      res.status(400).json({ error: "Invalid signature" });
+    }
+  } catch (error) {
+    console.error("Verification Error:", error);
+    res.status(500).json({ error: "Internal Server Error during verification." });
   }
 });
 
