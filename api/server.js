@@ -140,7 +140,7 @@ app.post('/api/payment/create-order', async (req, res) => {
 console.log("Payment route set up successfully.");
 
 app.post("/api/payment/verify", async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donorEmail, amount } = req.body;
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donorEmail, amount, donorName, mobileNumber, projectTitle } = req.body;
   const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
   hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
   
