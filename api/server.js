@@ -150,7 +150,7 @@ app.post('/api/payment/create-order', async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to create order" });
   }
 });
-
+console.log("Payment route set up successfully.");
 // --- PAYMENT INTEGRATION ---
 // ... (keep your create-order code as is)
 
