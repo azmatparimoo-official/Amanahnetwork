@@ -83,13 +83,13 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   try {
     const token = crypto.randomBytes(32).toString('hex');
-    const newUser = new User({ ...req.body, verificationToken: token });
+    const newUser = new User({ ...req.body, verificationToken: token, isVerified: true});
     await newUser.save();
     await transporter.sendMail({
       from: '"Amanah Support" <amanahnetwork.official@gmail.com>',
       to: req.body.email,
-      subject: 'Verify your Amanah Account',
-      text: `Click to verify: http://localhost:5000/api/verify/${token}`
+      subject: 'THANKS FOR REGISTERING WITH AMANAH',
+      text: `We are thrilled to welcome you to the Amanah Network! Your account has been created successfully. \nThank you for joining us in making a difference!`,
     });
     res.status(201).json({ message: "Registration successful! Please check your email." });
   } catch (error) {
