@@ -130,13 +130,6 @@ app.post('/api/payment/create-order', async (req, res) => {
         currency: "INR", 
         receipt: `receipt_${Date.now()}` 
     });
-    // SAVE INTENT TO DB
-    const newDonation = new Donation({ 
-        donorEmail, donorName, mobileNumber, amount, 
-        projectTitle: projectTitle || "General Donation", 
-        orderId: order.id, status: "PENDING" 
-    });
-    await newDonation.save();
     res.status(200).json(order);
   } catch (error) {
     // Log the actual error for Vercel Logs
@@ -152,8 +145,12 @@ app.post("/api/payment/verify", async (req, res) => {
   hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
   
   if (hmac.digest("hex") === razorpay_signature) {
-    await Donation.findOneAndUpdate({ orderId: razorpay_order_id }, { status: "SUCCESS" });
-    
+       const newDonation = new Donation({ 
+        donorEmail, donorName, mobileNumber, amount, 
+        projectTitle, orderId: razorpay_order_id, 
+        paymentId: razorpay_payment_id, status: "SUCCESS" 
+    });
+    await newDonation.save();    
     // INTEGRATED EMAIL LOGIC
     try {
       await transporter.sendMail({
