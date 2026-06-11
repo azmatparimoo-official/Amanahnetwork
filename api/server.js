@@ -13,7 +13,6 @@ const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Disbursement = require('../models/Disbursement');
 const app = express();
-const cors = require('cors');
 app.use(cors({
   origin: process.env.CLIENT_URL, // Replace with your live Vercel frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -36,7 +35,6 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
-module.exports = transporter;
 transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Email Transporter Error:", error);
