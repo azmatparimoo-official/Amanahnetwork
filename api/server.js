@@ -242,7 +242,10 @@ app.get('/api/admin/analytics', async (req, res) => {
   const totalDisbursed = disbursements.reduce((sum, d) => sum + d.amount, 0);
   res.status(200).json({ totalDonated, totalDisbursed, balance: totalDonated - totalDisbursed });
 });
-
+// Add this temporarily to test if it's working
+app.get('/', (req, res) => {
+  res.send('Amanah Network Backend is running!');
+});
 const PORT = process.env.PORT || 5000;
 //app.listen(PORT, () => console.log(`🚀 Production Engine running on port ${PORT}`));
 module.exports = app;
