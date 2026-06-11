@@ -130,19 +130,13 @@ app.post('/api/payment/create-order', async (req, res) => {
         currency: "INR", 
         receipt: `receipt_${Date.now()}` 
     });
-
-    // 3. Save to DB
+    // SAVE INTENT TO DB
     const newDonation = new Donation({ 
-        donorEmail,
-        donorName,
-        mobileNumber, 
-        amount, 
+        donorEmail, donorName, mobileNumber, amount, 
         projectTitle: projectTitle || "General Donation", 
-        orderId: order.id, 
-        status: "PENDING" 
+        orderId: order.id, status: "PENDING" 
     });
     await newDonation.save();
-
     res.status(200).json(order);
   } catch (error) {
     // Log the actual error for Vercel Logs
@@ -151,8 +145,6 @@ app.post('/api/payment/create-order', async (req, res) => {
   }
 });
 console.log("Payment route set up successfully.");
-// --- PAYMENT INTEGRATION ---
-// ... (keep your create-order code as is)
 
 app.post("/api/payment/verify", async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, donorEmail, amount } = req.body;
@@ -181,15 +173,20 @@ app.post("/api/payment/verify", async (req, res) => {
   }
 });
 
-// server.js
+// --- LEDGER ROUTE (Moved outside refund route to fix 404) ---
+app.get('/api/admin/ledger', adminAuth, async (req, res) => {
+  try {
+    const ledgerEntries = await Ledger.find().sort({ createdAt: -1 });
+    res.status(200).json(ledgerEntries);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch ledger." });
+  }
+});
+
+// --- REFUND ROUTE ---
 app.post('/api/admin/process-refund', adminAuth, async (req, res) => {
   const { donationId, amount, userEmail, userName } = req.body;
-  
-  // Identify who performed this
-  const performedBy = req.user ? req.user._id : "MASTER_KEY_USER";
-
-  await Donation.findByIdAndUpdate({ orderId: razorpay_order_id }, // Find the PENDING donation
-    { status: "SUCCESS", paymentId: razorpay_payment_id });
+  await Donation.findByIdAndUpdate({ orderId: donationId }, { status: "REFUNDED" });
 
   // SAVE TO LEDGER
   await new Ledger({
@@ -197,7 +194,7 @@ app.post('/api/admin/process-refund', adminAuth, async (req, res) => {
     targetUserName: userName,
     actionType: 'REFUND_PROCESSED',
     performedBy: req.user ? req.user._id : null, 
-    details: `Refund processed via ${req.user ? 'Board Member' : 'Master Key'}`,
+    details: `Refund processed`,
     amount: amount
   }).save();
 
@@ -210,31 +207,15 @@ app.get('/api/donations', async (req, res) => {
 });
 
 app.post('/api/disbursements/request', async (req, res) => {
-  const { name, email, description } = req.body; // Ensure these fields exist
-
+  const { name, email, description } = req.body; 
   try {
-    // 1. Save to Database
     await new Disbursement(req.body).save();
-
-    // 2. Send Confirmation Email
     await transporter.sendMail({
       from: '"Amanah Support" <amanahnetwork.official@gmail.com>',
       to: email,
       subject: 'We received your aid request',
-      html: `
-        <div style="font-family: sans-serif; line-height: 1.6;">
-          <h2 style="color: #2d3748;">Request Received</h2>
-          <p>Hi ${name},</p>
-          <p>We have successfully received your request for aid. Our team is currently reviewing the details:</p>
-          <blockquote style="border-left: 4px solid #ecc94b; padding-left: 10px; color: #555;">
-            ${description}
-          </blockquote>
-          <p>We will reach out to you if we need further information. Thank you for your patience.</p>
-          <p>Best regards,<br><strong>Amanah Network</strong></p>
-        </div>
-      `
+      html: `<div><h2>Request Received</h2><p>Hi ${name},</p><p>We have successfully received your request for aid.</p></div>`
     });
-
     res.status(201).json({ message: "Request received and email sent!" });
   } catch (error) {
     console.error("Aid Request Email Error:", error);
@@ -253,21 +234,15 @@ app.get('/api/disbursements', async (req, res) => {
 
 app.post('/api/admin/answer-query', adminAuth, async (req, res) => {
   const { queryId, answer, userEmail, userName } = req.body;
-  
   try {
-    // 1. YOUR EXISTING LOGIC to update the query in the database
-    // await Query.findByIdAndUpdate(queryId, { answer: answer, status: 'ANSWERED' });
-  
-    // 2. Log to Ledger
     await new Ledger({
       targetUserEmail: userEmail,
       targetUserName: userName,
       actionType: 'QUERY_ANSWERED',
       performedBy: req.user ? req.user._id : null, 
       details: answer,
-      amount: 0 // Default to 0 for queries
+      amount: 0 
     }).save();
-
     res.status(200).json({ message: "Answered and recorded in ledger." });
   } catch (error) {
     res.status(500).json({ error: "Failed to process and log answer." });
@@ -282,10 +257,9 @@ app.get('/api/admin/analytics', async (req, res) => {
   const totalDisbursed = disbursements.reduce((sum, d) => sum + d.amount, 0);
   res.status(200).json({ totalDonated, totalDisbursed, balance: totalDonated - totalDisbursed });
 });
-// Add this temporarily to test if it's working
+
 app.get('/', (req, res) => {
   res.send('Amanah Network Backend is running!');
 });
 const PORT = process.env.PORT || 5000;
-//app.listen(PORT, () => console.log(`🚀 Production Engine running on port ${PORT}`));
 module.exports = app;
