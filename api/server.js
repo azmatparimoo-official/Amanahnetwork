@@ -26,7 +26,7 @@ const razorpay = new Razorpay({
 });
 
 // --- DATABASE CONNECTION ---
-mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 })
+mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 20000 , socketTimeoutMS: 45000 })
   .then(() => console.log("🚀 Connected to MongoDB Atlas"))
   .catch(err => console.error("--- DATABASE CONNECTION FAILURE ---", err.message));
 
@@ -82,6 +82,9 @@ app.post('/api/auth/login', async (req, res) => {
 //registration
 app.post('/api/register', async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(process.env.MONGO_URI);
+    }
     const token = crypto.randomBytes(32).toString('hex');
     const newUser = new User({ ...req.body, verificationToken: token, isVerified: true});
     await newUser.save();
