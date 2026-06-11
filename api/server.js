@@ -109,12 +109,38 @@ app.get('/api/verify/:token', async (req, res) => {
 // --- PAYMENT INTEGRATION ---
 app.post('/api/payment/create-order', async (req, res) => {
   const { amount, donorEmail, projectTitle } = req.body;
+
+  // Validation: Prevent empty requests from crashing the server
+  if (!amount || !donorEmail) {
+    return res.status(400).json({ error: "Missing required donation details" });
+  }
+
   try {
-    const order = await razorpay.orders.create({ amount: amount * 100, currency: "INR", receipt: `receipt_${Date.now()}` });
-    await new Donation({ donorEmail, amount, projectTitle, orderId: order.id, status: "PENDING" }).save();
-    res.json(order);
+    // 1. Ensure DB connection is established
+    await connectDB(); 
+
+    // 2. Create Razorpay Order
+    const order = await razorpay.orders.create({ 
+        amount: amount * 100, 
+        currency: "INR", 
+        receipt: `receipt_${Date.now()}` 
+    });
+
+    // 3. Save to DB
+    const newDonation = new Donation({ 
+        donorEmail, 
+        amount, 
+        projectTitle, 
+        orderId: order.id, 
+        status: "PENDING" 
+    });
+    await newDonation.save();
+
+    res.status(200).json(order);
   } catch (error) {
-    res.status(500).json({ error: "Failed to create order" });
+    // Log the actual error for Vercel Logs
+    console.error("Payment Creation Error:", error);
+    res.status(500).json({ error: error.message || "Failed to create order" });
   }
 });
 
