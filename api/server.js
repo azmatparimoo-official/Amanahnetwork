@@ -113,7 +113,7 @@ app.get('/api/verify/:token', async (req, res) => {
 
 // --- PAYMENT INTEGRATION ---
 app.post('/api/payment/create-order', async (req, res) => {
-  const { amount, donorEmail, projectTitle } = req.body;
+  const { amount, donorEmail, projectTitle , donorName} = req.body;
 
   // Validation: Prevent empty requests from crashing the server
   if (!amount || !donorEmail) {
@@ -133,7 +133,8 @@ app.post('/api/payment/create-order', async (req, res) => {
 
     // 3. Save to DB
     const newDonation = new Donation({ 
-        donorEmail, 
+        donorEmail,
+        donorName, 
         amount, 
         projectTitle: projectTitle || "General Donation", 
         orderId: order.id, 
