@@ -5,13 +5,13 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
-const adminAuth = require('./middleware/adminAuth');
-const isAdmin = require('./middleware/adminAuth');
-const Ledger = require('./models/Ledger');
+const adminAuth = require('../middleware/adminAuth');
+const isAdmin = require('../middleware/adminAuth');
+const Ledger = require('../models/Ledger');
 // Import Schemas
-const User = require('./models/User');
-const Donation = require('./models/Donation');
-const Disbursement = require('./models/Disbursement');
+const User = require('../models/User');
+const Donation = require('../models/Donation');
+const Disbursement = require('../models/Disbursement');
 const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json());
@@ -244,4 +244,5 @@ app.get('/api/admin/analytics', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Production Engine running on port ${PORT}`));
+//app.listen(PORT, () => console.log(`🚀 Production Engine running on port ${PORT}`));
+module.exports = app;
