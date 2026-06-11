@@ -130,7 +130,7 @@ app.post('/api/payment/create-order', async (req, res) => {
     const newDonation = new Donation({ 
         donorEmail, 
         amount, 
-        projectTitle, 
+        projectTitle: projectTitle || "General Donation", 
         orderId: order.id, 
         status: "PENDING" 
     });
