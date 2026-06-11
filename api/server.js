@@ -179,7 +179,14 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch ledger." });
   }
 });
-
+app.get('/api/admin/ledger/statement/:email', adminAuth, async (req, res) => {
+    try {
+        const statements = await Ledger.find({ targetUserEmail: req.params.email }).sort({ createdAt: -1 });
+        res.status(200).json(statements);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch statement." });
+    }
+});
 // --- REFUND ROUTE ---
 app.post('/api/admin/process-refund', adminAuth, async (req, res) => {
   const { donationId, amount, userEmail, userName } = req.body;
