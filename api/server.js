@@ -13,6 +13,11 @@ const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Disbursement = require('../models/Disbursement');
 const app = express();
+// Add this helper function at the top of your file
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+  await mongoose.connect(process.env.MONGO_URI);
+};
 app.use(cors({
   origin: process.env.CLIENT_URL, // Replace with your live Vercel frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
