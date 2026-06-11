@@ -15,7 +15,7 @@ const Disbursement = require('../models/Disbursement');
 const app = express();
 const cors = require('cors');
 app.use(cors({
-  origin: [process.env.CLIENT_URL], // Replace with your live Vercel frontend URL
+  origin: process.env.CLIENT_URL, // Replace with your live Vercel frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
