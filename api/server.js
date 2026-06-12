@@ -150,7 +150,7 @@ const sendDonationEmail = async (donorEmail, amount) => {
   try {
     await resend.emails.send({
       from: 'Amanah Foundation <onboarding@resend.dev>', // Verified domain later
-      to: donorEmail,
+      to: 'networkamanah60@gmail.com',
       subject: 'Donation Received!',
       html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
     });
