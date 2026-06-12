@@ -8,7 +8,7 @@ const Razorpay = require('razorpay');
 const adminAuth = require('../middleware/adminAuth');
 const isAdmin = require('../middleware/adminAuth');
 const Ledger = require('../models/Ledger');
-import { Resend } from 'resend';
+const { Resend } = require('resend');
 // Import Schemas
 const User = require('../models/User');
 const Donation = require('../models/Donation');
@@ -221,8 +221,23 @@ app.post("/api/payment/verify", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+// Ensure this is ABOVE your app.listen or export
+app.get('/api/admin/ledger', async (req, res) => {
+  try {
+    const ledgerEntries = await Ledger.find().sort({ timestamp: -1 });
+    res.status(200).json(ledgerEntries);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching ledger", error });
+  }
+});
+
 // A central helper to keep your code DRY
 async function createLedgerEntry(actionType, target, amount, transactionId) {
+  // Add this validation check
+  if (!target || !amount || !transactionId) {
+    console.error("Ledger Save Failed: Missing fields", { target, amount, transactionId });
+    return;
+  }
   try {
     const newEntry = new Ledger({
       actionType, // 'RECEIVED' or 'SPENT'
