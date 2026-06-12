@@ -124,7 +124,10 @@ app.post('/api/payment/create-order', async (req, res) => {
   try {
     // 1. Ensure DB connection is established
     await connectDB(); 
-
+  const userExists = await User.findOne({ email: donorEmail.toLowerCase() });
+    if (!userExists) {
+      return res.status(401).json({ error: "Access Denied: Email not registered in our network." });
+    }
     // 2. Create Razorpay Order
     const order = await razorpay.orders.create({ 
         amount: amount * 100, 
