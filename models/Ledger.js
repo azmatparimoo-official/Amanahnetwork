@@ -1,13 +1,17 @@
 const mongoose = require('mongoose');
+
+// Define the schema using the variable name 'ledgerSchema'
 const ledgerSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   actionType: { 
     type: String, 
-    enum: ['RECEIVED', 'SPENT'], // Ensure these match exactly what you pass
+    enum: ['RECEIVED', 'SPENT'], 
     required: true 
   },
-  target: { type: String, required: true }, // Use 'target' instead of split email/name
+  target: { type: String, required: true },
   amount: { type: Number, required: true },
   transactionId: { type: String, required: true }
 });
-module.exports = mongoose.model('Ledger', LedgerSchema);
+
+// Export using the SAME variable name 'ledgerSchema'
+module.exports = mongoose.model('Ledger', ledgerSchema);
