@@ -184,7 +184,7 @@ app.post("/api/payment/verify", async (req, res) => {
       // 5. Email Logic (Non-blocking)
       // We don't 'await' this so the payment success returns to the user immediately
       transporter.sendMail({
-        from: '"Amanah Foundation" <amanahnetwork.official@gmail.com>',
+        from: '"Amanah Foundation" <networkamanah60@gmail.com>',
         to: donorEmail, 
         subject: 'Donation Received!',
         html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
