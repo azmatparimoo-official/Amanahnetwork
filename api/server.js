@@ -142,7 +142,7 @@ app.post('/api/payment/create-order', async (req, res) => {
   }
 });
 console.log("Payment route set up successfully.");
-// email sender function for donations
+// email
  const sendDonationEmail = async (donorEmail, amount) => {
   try {
     await transporter.sendMail({
@@ -180,47 +180,44 @@ app.post("/api/payment/verify", async (req, res) => {
     const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
     hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
     
-    if (hmac.digest("hex") === razorpay_signature) {
-      // 4. Save Donation
-      const newDonation = new Donation({ 
+    if (hmac.digest("hex") !== razorpay_signature) {
+      return res.status(400).json({ error: "Invalid signature" });
+    }
+
+    // 3. Prevent Duplicates (Security Check)
+    const existing = await Donation.findOne({ paymentId: razorpay_payment_id });
+    if (existing) {
+      return res.status(400).json({ error: "Payment already processed" });
+    }
+
+    // 4. Verify with Razorpay API
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+    
+    if (payment.status === 'captured') {
+        // 5. Save to Database
+        const newDonation = new Donation({ 
         donorEmail, 
-        donorName, 
+        donorName,
         mobileNumber, 
         amount, 
         projectTitle, 
         orderId: razorpay_order_id, 
         paymentId: razorpay_payment_id, 
         status: "SUCCESS" 
-      });
-      await newDonation.save(); 
-    
-      sendDonationEmail(donorEmail, amount); 
-
-    res.status(200).json({ status: "success", message: "Donation verified." });
+        });
+        await newDonation.save();
+        
+        // 6. Async Email (Fire and forget)
+        sendDonationEmail(otherData.donorEmail, otherData.amount);
+        
+        return res.status(200).json({ status: "success", message: "Donation verified and captured." });
     } else {
-      res.status(400).json({ error: "Invalid signature" });
+        return res.status(400).json({ error: "Payment not captured by provider" });
     }
   } catch (error) {
     console.error("Verification Error:", error);
-    res.status(500).json({ error: "Internal Server Error during verification." });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
-});
-// --- LEDGER ROUTE (Moved outside refund route to fix 404) ---
-app.get('/api/admin/ledger', adminAuth, async (req, res) => {
-  try {
-    const ledgerEntries = await Ledger.find().sort({ createdAt: -1 });
-    res.status(200).json(ledgerEntries);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch ledger." });
-  }
-});
-app.get('/api/admin/ledger/statement/:email', adminAuth, async (req, res) => {
-    try {
-        const statements = await Ledger.find({ targetUserEmail: req.params.email }).sort({ createdAt: -1 });
-        res.status(200).json(statements);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch statement." });
-    }
 });
 // --- REFUND ROUTE ---
 app.post('/api/admin/process-refund', adminAuth, async (req, res) => {
