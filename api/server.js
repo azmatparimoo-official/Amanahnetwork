@@ -179,19 +179,25 @@ app.post("/api/payment/verify", async (req, res) => {
         paymentId: razorpay_payment_id, 
         status: "SUCCESS" 
       });
-      await newDonation.save();    
+      await newDonation.save(); 
+      
+            // 5. Email Logic (Non-blocking)
 
-      // 5. Email Logic (Non-blocking)
-      // We don't 'await' this so the payment success returns to the user immediately
-      transporter.sendMail({
-        from: '"Amanah Foundation" <networkamanah60@gmail.com>',
-        to: donorEmail, 
-        subject: 'Donation Received!',
-        html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
-      }).catch(emailError => console.error("Email Error:", emailError));
+      sendDonationEmail(donorEmail, amount); 
 
-      res.status(200).json({ status: "success", message: "Donation verified and email sent." });
-
+    res.status(200).json({ status: "success", message: "Donation verified." });
+      const sendDonationEmail = async (donorEmail, amount) => {
+  try {
+    await transporter.sendMail({
+      from: '"Amanah Foundation" <amanahnetwork.official@gmail.com>',
+      to: donorEmail,
+      subject: 'Donation Received!',
+      html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
+    });
+  } catch (err) {
+    console.error("Async Email Error:", err);
+  }
+};
     } else {
       res.status(400).json({ error: "Invalid signature" });
     }
