@@ -8,6 +8,7 @@ const Razorpay = require('razorpay');
 const adminAuth = require('../middleware/adminAuth');
 const isAdmin = require('../middleware/adminAuth');
 const Ledger = require('../models/Ledger');
+import { Resend } from 'resend';
 // Import Schemas
 const User = require('../models/User');
 const Donation = require('../models/Donation');
@@ -143,16 +144,18 @@ app.post('/api/payment/create-order', async (req, res) => {
 });
 console.log("Payment route set up successfully.");
 // email
- const sendDonationEmail = async (donorEmail, amount) => {
+ const resend = new Resend(process.env.RESEND_API_KEY);
+
+const sendDonationEmail = async (donorEmail, amount) => {
   try {
-    await transporter.sendMail({
-      from: '"Amanah Foundation" <amanahnetwork.official@gmail.com>',
+    await resend.emails.send({
+      from: 'Amanah Foundation <onboarding@resend.dev>', // Verified domain later
       to: donorEmail,
       subject: 'Donation Received!',
       html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
     });
   } catch (err) {
-    console.error("Async Email Error:", err);
+    console.error("Resend Error:", err);
   }
 };
 
