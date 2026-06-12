@@ -208,7 +208,7 @@ app.post("/api/payment/verify", async (req, res) => {
         status: "SUCCESS" 
         });
         await newDonation.save();
-        
+        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id);``
         // 6. Async Email (Fire and forget)
         sendDonationEmail(donorEmail, amount);
         
@@ -221,24 +221,17 @@ app.post("/api/payment/verify", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-// --- REFUND ROUTE ---
-app.post('/api/admin/process-refund', adminAuth, async (req, res) => {
-  const { donationId, amount, userEmail, userName } = req.body;
-  await Donation.findByIdAndUpdate({ orderId: donationId }, { status: "REFUNDED" });
-
-  // SAVE TO LEDGER
-  await new Ledger({
-    targetUserEmail: userEmail,
-    targetUserName: userName,
-    actionType: 'REFUND_PROCESSED',
-    performedBy: req.user ? req.user._id : null, 
-    details: `Refund processed`,
-    amount: amount
-  }).save();
-
-  res.status(200).json({ message: "Refund logged successfully." });
-});
-
+// A central helper to keep your code DRY
+async function createLedgerEntry(actionType, target, amount, transactionId) {
+  const newEntry = new Ledger({
+    actionType, // 'RECEIVED' or 'SPENT'
+    target,     // e.g., 'Donor Name' or 'Project Title'
+    amount,
+    transactionId,
+    timestamp: new Date()
+  });
+  await newEntry.save();
+}
 // --- DONATIONS & DISBURSEMENTS ---
 app.get('/api/donations', async (req, res) => {
   res.status(200).json(await Donation.find());
@@ -270,32 +263,24 @@ app.get('/api/disbursements', async (req, res) => {
   res.status(200).json(await Disbursement.find());
 });
 
-app.post('/api/admin/answer-query', adminAuth, async (req, res) => {
-  const { queryId, answer, userEmail, userName } = req.body;
-  try {
-    await new Ledger({
-      targetUserEmail: userEmail,
-      targetUserName: userName,
-      actionType: 'QUERY_ANSWERED',
-      performedBy: req.user ? req.user._id : null, 
-      details: answer,
-      amount: 0 
-    }).save();
-    res.status(200).json({ message: "Answered and recorded in ledger." });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to process and log answer." });
-  }
-});
-
 // --- ANALYTICS ---
-app.get('/api/admin/analytics', async (req, res) => {
-  const donations = await Donation.find();
-  const disbursements = await Disbursement.find();
-  const totalDonated = donations.reduce((sum, d) => (d.status === 'SUCCESS' ? sum + d.amount : sum), 0);
-  const totalDisbursed = disbursements.reduce((sum, d) => sum + d.amount, 0);
-  res.status(200).json({ totalDonated, totalDisbursed, balance: totalDonated - totalDisbursed });
-});
+app.get('/api/admin/analytics', adminAuth, async (req, res) => {
+  const ledger = await Ledger.find();
+  
+  let received = 0;
+  let spent = 0;
 
+  ledger.forEach(entry => {
+    if (entry.actionType === 'RECEIVED') received += entry.amount;
+    if (entry.actionType === 'SPENT') spent += entry.amount;
+  });
+
+  res.json({
+    totalDonated: received,
+    totalDisbursed: spent,
+    balance: received - spent
+  });
+});
 app.get('/', (req, res) => {
   res.send('Amanah Network Backend is running!');
 });
