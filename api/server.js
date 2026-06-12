@@ -142,6 +142,19 @@ app.post('/api/payment/create-order', async (req, res) => {
   }
 });
 console.log("Payment route set up successfully.");
+// email sender function for donations
+ const sendDonationEmail = async (donorEmail, amount) => {
+  try {
+    await transporter.sendMail({
+      from: '"Amanah Foundation" <amanahnetwork.official@gmail.com>',
+      to: donorEmail,
+      subject: 'Donation Received!',
+      html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
+    });
+  } catch (err) {
+    console.error("Async Email Error:", err);
+  }
+};
 
 // Ensure you have 'let isConnected = false;' defined at the top level of your server.js
 app.post("/api/payment/verify", async (req, res) => {
@@ -180,24 +193,10 @@ app.post("/api/payment/verify", async (req, res) => {
         status: "SUCCESS" 
       });
       await newDonation.save(); 
-      
-            // 5. Email Logic (Non-blocking)
-
+    
       sendDonationEmail(donorEmail, amount); 
 
     res.status(200).json({ status: "success", message: "Donation verified." });
-      const sendDonationEmail = async (donorEmail, amount) => {
-  try {
-    await transporter.sendMail({
-      from: '"Amanah Foundation" <amanahnetwork.official@gmail.com>',
-      to: donorEmail,
-      subject: 'Donation Received!',
-      html: `<h1>Thank you!</h1><p>We received your donation of ₹${amount}.</p>`
-    });
-  } catch (err) {
-    console.error("Async Email Error:", err);
-  }
-};
     } else {
       res.status(400).json({ error: "Invalid signature" });
     }
