@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const ledgerSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   actionType: { 
