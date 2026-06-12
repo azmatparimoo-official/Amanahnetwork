@@ -208,7 +208,7 @@ app.post("/api/payment/verify", async (req, res) => {
         await newDonation.save();
         
         // 6. Async Email (Fire and forget)
-        sendDonationEmail(otherData.donorEmail, otherData.amount);
+        sendDonationEmail(donorEmail, amount);
         
         return res.status(200).json({ status: "success", message: "Donation verified and captured." });
     } else {
