@@ -208,7 +208,7 @@ app.post("/api/payment/verify", async (req, res) => {
         status: "SUCCESS" 
         });
         await newDonation.save();
-        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id);``
+        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id);
         // 6. Async Email (Fire and forget)
         sendDonationEmail(donorEmail, amount);
         
@@ -223,14 +223,19 @@ app.post("/api/payment/verify", async (req, res) => {
 });
 // A central helper to keep your code DRY
 async function createLedgerEntry(actionType, target, amount, transactionId) {
-  const newEntry = new Ledger({
-    actionType, // 'RECEIVED' or 'SPENT'
-    target,     // e.g., 'Donor Name' or 'Project Title'
-    amount,
-    transactionId,
-    timestamp: new Date()
-  });
-  await newEntry.save();
+  try {
+    const newEntry = new Ledger({
+      actionType, // 'RECEIVED' or 'SPENT'
+      target,     // e.g., 'Donor Name' or 'Project Title'
+      amount,
+      transactionId,
+      timestamp: new Date()
+    });
+    await newEntry.save();
+    console.log("Ledger entry saved successfully");
+  } catch (err) {
+    console.error("Ledger Save Error:", err); // This helps debug exactly what field is missing
+  }
 }
 // --- DONATIONS & DISBURSEMENTS ---
 app.get('/api/donations', async (req, res) => {

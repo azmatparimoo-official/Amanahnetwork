@@ -1,21 +1,12 @@
-const mongoose = require('mongoose');
-
-const LedgerSchema = new mongoose.Schema({
-  targetUserEmail: { type: String, required: true },
-  targetUserName: { type: String, required: true },
+const ledgerSchema = new mongoose.Schema({
+  timestamp: { type: Date, default: Date.now },
   actionType: { 
     type: String, 
-    enum: ['QUERY_ANSWERED', 'REFUND_PROCESSED', 'OTHER'], 
+    enum: ['RECEIVED', 'SPENT'], // Ensure these match exactly what you pass
     required: true 
   },
-  performedBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    default: null // Will be null if performed via Master Secret Key
-  },
-  details: { type: String }, // The answer given or refund note
-  amount: { type: Number, default: 0 },
-  timestamp: { type: Date, default: Date.now }
+  target: { type: String, required: true }, // Use 'target' instead of split email/name
+  amount: { type: Number, required: true },
+  transactionId: { type: String, required: true }
 });
-
 module.exports = mongoose.model('Ledger', LedgerSchema);
