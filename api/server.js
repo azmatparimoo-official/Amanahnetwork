@@ -203,8 +203,8 @@ app.post("/api/payment/verify", async (req, res) => {
         mobileNumber, 
         amount, 
         projectTitle, 
-        orderId: razorpay_order_id, 
-        paymentId: razorpay_payment_id, 
+        orderId:razorpay_order_id, 
+        paymentId:razorpay_payment_id, 
         status: "SUCCESS" 
         });
         await newDonation.save();
