@@ -4,6 +4,7 @@
   "description": "",
   "main": "api/server.js",
   "scripts": {
+    "build": "cd amanah-frontend && npm install && npm run build && xcopy /E /I dist ../api/dist",
     "start": "node api/server.js",
     "dev": "nodemon api/server.js"
   },
