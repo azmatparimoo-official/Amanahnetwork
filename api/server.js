@@ -243,10 +243,12 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
   const { from, to,actionType } = req.query;
     const query = {};
     if (from && to) {
-      query.timestamp = { 
-        $gte: new Date(from), 
-        $lte: new Date(to) 
-      };
+      const startDate = new Date(from);
+      const endDate = new Date(to);
+      // Ensure we include the full duration of the 'to' day
+      endDate.setUTCHours(23, 59, 59, 999);
+      
+      query.timestamp = { $gte: startDate, $lte: endDate };
     }
     if (actionType && actionType !== 'ALL') {
       query.actionType = actionType;
