@@ -252,7 +252,7 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
       }
     }
     if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
-      query.actionType = { $regex: actionType, $options: 'i' };
+      query.actionType = { $regex:new RegExp(actionType, 'i') };
     } else {
   // If actionType is 'ALL' or empty, we explicitly ensure the query 
   // does NOT contain actionType, so it returns all records.
