@@ -253,10 +253,13 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
     if (actionType && actionType !== 'ALL') {
       query.actionType = actionType;
     }
+    console.log("DEBUG: Database Query:", JSON.stringify(query));
+
     const ledgerEntries = await Ledger.find(query).sort({ timestamp: -1 });
     res.status(200).json(ledgerEntries);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching ledger", error });
+    console.error("CRITICAL_LEDGER_ERROR:", error);
+    res.status(500).json({ message: "Error fetching ledger", error: error.message });
   }
 });
 
