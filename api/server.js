@@ -12,7 +12,7 @@ const { Resend } = require('resend');
 // Import Schemas
 const User = require('../models/User');
 const Donation = require('../models/Donation');
-const Disbursement = require('../models/Disbursement');
+const TransferAid = require('../models/TransferAid');
 const app = express();
 let isConnected = false;
 // Add this helper function at the top of your file
@@ -221,18 +221,29 @@ app.post("/api/payment/verify", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-app.post('/api/admin/transfer', adminAuth, async (req, res) => {
+app.post(process.env.SECRET_TRANSFER_PATH, adminAuth, async (req, res) => {
   const { amount, recipientName, note } = req.body;
   const transactionId = "TXN_" + crypto.randomBytes(8).toString('hex');
 
   try {
-    // 1. Create the entry as 'SPENT'
-    await createLedgerEntry('SPENT', recipientName, amount, transactionId);
+    // 1. Save to the new dedicated collection
+    const newTransfer = new TransferAid({
+      recipientName,
+      amount,
+      note,
+      transactionId,
+      adminId: req.user._id // Ensure your adminAuth middleware attaches user
+    });
+    await newTransfer.save();
+
+    // 2. Log to the Ledger for Analytics
+    const target = `${recipientName} - ${note || 'No description'}`;
+    await createLedgerEntry('SPENT', target, parseFloat(amount), transactionId);
     
-    // 2. You could also log this to a 'Disbursement' model if needed
-    res.status(200).json({ message: "Transfer logged successfully", transactionId });
+    res.status(200).json({ message: "Transfer logged in TransferAid and Ledger", transactionId });
   } catch (error) {
-    res.status(500).json({ error: "Transfer log failed" });
+    console.error("Transfer Error:", error);
+    res.status(500).json({ error: "Transfer failed" });
   }
 });
 
@@ -289,36 +300,11 @@ async function createLedgerEntry(actionType, target, amount, transactionId) {
     console.error("Ledger Save Error:", err); // This helps debug exactly what field is missing
   }
 }
-// --- DONATIONS & DISBURSEMENTS ---
+// --- DONATIONS 
 app.get('/api/donations', async (req, res) => {
   res.status(200).json(await Donation.find());
 });
 
-app.post('/api/disbursements/request', async (req, res) => {
-  const { name, email, description } = req.body; 
-  try {
-    await new Disbursement(req.body).save();
-    await transporter.sendMail({
-      from: '"Amanah Support" <amanahnetwork.official@gmail.com>',
-      to: email,
-      subject: 'We received your aid request',
-      html: `<div><h2>Request Received</h2><p>Hi ${name},</p><p>We have successfully received your request for aid.</p></div>`
-    });
-    res.status(201).json({ message: "Request received and email sent!" });
-  } catch (error) {
-    console.error("Aid Request Email Error:", error);
-    res.status(500).json({ error: "Request saved, but email notification failed." });
-  }
-});
-
-app.patch('/api/disbursements/approve/:id', async (req, res) => {
-  const updated = await Disbursement.findByIdAndUpdate(req.params.id, { status: 'APPROVED', approvedAt: new Date() }, { new: true });
-  res.status(200).json(updated);
-});
-
-app.get('/api/disbursements', async (req, res) => {
-  res.status(200).json(await Disbursement.find());
-});
 
 // --- ANALYTICS ---
 app.get('/api/admin/analytics', adminAuth, async (req, res) => {
@@ -334,7 +320,7 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
 
   res.json({
     totalDonated: received,
-    totalDisbursed: spent,
+    totalSpent: spent,
     balance: received - spent
   });
 });
