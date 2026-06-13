@@ -410,21 +410,14 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
   });
 });
 
-const frontendPath = path.resolve(__dirname, 'amanah-frontend', 'dist');
-
-// Serve static files from the dist folder
+const frontendPath = path.resolve(__dirname, '..', 'amanah-frontend', 'dist');
+console.log("Current Directory:", __dirname);
+console.log("Looking for frontend at:", frontendPath);
 app.use(express.static(frontendPath));
 
-// API routes should be defined BEFORE the catch-all route
-// e.g., app.post('/api/auth/login', ...);
-
-// Catch-all route to serve index.html for any non-API request
 app.get(/.*/, (req, res) => {
-  // Only serve index.html if it's not an API request
   if (!req.path.startsWith('/api')) {
     res.sendFile(path.join(frontendPath, 'index.html'));
-  } else {
-    res.status(404).json({ error: 'API route not found' });
   }
 });
 
