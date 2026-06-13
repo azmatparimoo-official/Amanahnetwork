@@ -221,10 +221,33 @@ app.post("/api/payment/verify", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-// Ensure this is ABOVE your app.listen or export
-app.get('/api/admin/ledger', async (req, res) => {
+app.post('/api/admin/transfer', adminAuth, async (req, res) => {
+  const { amount, recipientName, note } = req.body;
+  const transactionId = "TXN_" + crypto.randomBytes(8).toString('hex');
+
   try {
-    const ledgerEntries = await Ledger.find().sort({ timestamp: -1 });
+    // 1. Create the entry as 'SPENT'
+    await createLedgerEntry('SPENT', recipientName, amount, transactionId);
+    
+    // 2. You could also log this to a 'Disbursement' model if needed
+    res.status(200).json({ message: "Transfer logged successfully", transactionId });
+  } catch (error) {
+    res.status(500).json({ error: "Transfer log failed" });
+  }
+});
+
+// Ensure this is ABOVE your app.listen or export
+app.get('/api/admin/ledger', adminAuth, async (req, res) => {
+  const { from, to } = req.query;
+  try {
+    const query = {};
+    if (from && to) {
+      query.timestamp = { 
+        $gte: new Date(from), 
+        $lte: new Date(to) 
+      };
+    }
+    const ledgerEntries = await Ledger.find(query).sort({ timestamp: -1 });
     res.status(200).json(ledgerEntries);
   } catch (error) {
     res.status(500).json({ message: "Error fetching ledger", error });
@@ -246,7 +269,7 @@ async function createLedgerEntry(actionType, target, amount, transactionId) {
       transactionId,
       timestamp: new Date()
     });
-    await newEntry.save();
+    return await newEntry.save();
     console.log("Ledger entry saved successfully");
   } catch (err) {
     console.error("Ledger Save Error:", err); // This helps debug exactly what field is missing
