@@ -242,7 +242,7 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
   await connectDB(); // Ensure DB connection before querying
   const { from, to,actionType } = req.query;
     const query = {};
-    if (from && to) {
+    if (from && to && from !== 'undefined' && to !== 'undefined') {
       const startDate = new Date(from);
       const endDate = new Date(to);
       // Ensure we include the full duration of the 'to' day
@@ -250,7 +250,7 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
       
       query.timestamp = { $gte: startDate, $lte: endDate };
     }
-    if (actionType && actionType !== 'ALL') {
+    if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
       query.actionType = actionType;
     }
     console.log("DEBUG: Database Query:", JSON.stringify(query));
