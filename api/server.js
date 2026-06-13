@@ -252,7 +252,7 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
       }
     }
     if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
-      query.actionType = actionType;
+      query.actionType = { $regex: new RegExp(`^${actionType}$`, 'i') };
     }
     console.log("DEBUG: Database Query:", JSON.stringify(query));
 
