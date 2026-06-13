@@ -240,8 +240,7 @@ app.post('/api/admin/transfer', adminAuth, async (req, res) => {
 app.get('/api/admin/ledger', adminAuth, async (req, res) => {
   try {
   await connectDB(); // Ensure DB connection before querying
-  const { actionType } = req.query;
-  const { from, to } = req.query;
+  const { from, to,actionType } = req.query;
     const query = {};
     if (from && to) {
       query.timestamp = { 
