@@ -410,7 +410,7 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
   });
 });
 
-const frontendPath = path.resolve(__dirname, '..', 'amanah-frontend', 'dist');
+const frontendPath = path.join(__dirname, 'dist');
 console.log("Current Directory:", __dirname);
 console.log("Looking for frontend at:", frontendPath);
 app.use(express.static(frontendPath));
