@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -407,5 +408,10 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
     totalSpent: spent,
     balance: received - spent
   });
+});
+ app.use(express.static(path.join(__dirname, 'amanah-frontend/dist')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'amanah-frontend/dist', 'index.html'));
 });
 module.exports = app;
