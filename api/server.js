@@ -409,16 +409,7 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
     balance: received - spent
   });
 });
-
-const frontendPath = path.join(__dirname, 'dist');
-console.log("Current Directory:", __dirname);
-console.log("Looking for frontend at:", frontendPath);
-app.use(express.static(frontendPath));
-
-app.get(/.*/, (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  }
+app.get('/api/data', (req, res) => {
+  res.json({ message: "Hello from the backend!" });
 });
-
 module.exports = app;
