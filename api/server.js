@@ -247,6 +247,9 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
         $lte: new Date(to) 
       };
     }
+    if (actionType && actionType !== 'ALL') {
+      query.actionType = actionType;
+    }
     const ledgerEntries = await Ledger.find(query).sort({ timestamp: -1 });
     res.status(200).json(ledgerEntries);
   } catch (error) {
