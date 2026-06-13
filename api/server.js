@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
+const axios = require('axios');
 const adminAuth = require('../middleware/adminAuth');
 const isAdmin = require('../middleware/adminAuth');
 const Ledger = require('../models/Ledger');
@@ -13,6 +14,9 @@ const { Resend } = require('resend');
 const User = require('../models/User');
 const Donation = require('../models/Donation');
 const TransferAid = require('../models/TransferAid');
+const bcrypt = require('bcryptjs');
+const AuthorizedAgent = require('./models/AuthorizedAgent');
+const otpStore = {};
 const app = express();
 let isConnected = false;
 // Add this helper function at the top of your file
@@ -31,7 +35,14 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
-
+ // Middleware for every sensitive API route
+const secureApiGuard = (req, res, next) => {
+  const secretKey = req.headers['x-governance-key'];
+  if (secretKey === process.env.ADMIN_KEY) {
+    return next();
+  }
+  res.status(403).json({ error: "Access Denied" });
+};
 // --- DATABASE CONNECTION ---
 mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 20000 , socketTimeoutMS: 45000 })
   .then(() => console.log("🚀 Connected to MongoDB Atlas"))
@@ -221,28 +232,101 @@ app.post("/api/payment/verify", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-app.post(process.env.SECRET_TRANSFER_PATH, adminAuth, async (req, res) => {
-  const { amount, recipientName, note } = req.body;
-  const transactionId = "TXN_" + crypto.randomBytes(8).toString('hex');
+  app.post('/api/auth/send-otp', async (req, res) => {
+  const { email } = req.body;
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore[email] = otp;
+  await transporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject: 'Your OTP', text: `Code: ${otp}` });
+  res.json({ message: "OTP Sent" });
+});
+
+app.post('/api/auth/verify-otp', (req, res) => {
+  const { email, otp } = req.body;
+  if (otpStore[email] === otp) return res.json({ verified: true });
+  res.status(400).json({ error: "Invalid OTP" });
+});
+app.get('/api/auth/digilocker', (req, res) => {
+  const authUrl = `https://api.digitallocker.gov.in/authorize?client_id=${process.env.DL_ID}&response_type=code`;
+  res.redirect(authUrl);
+});
+
+// Step 2: Handle callback
+app.get('/api/auth/digilocker/callback', async (req, res) => {
+  const { code } = req.query;
+  
+  try {
+    // 1. Exchange code for access_token
+    const tokenResponse = await axios.post('https://api.digitallocker.gov.in/token', {
+      client_id: process.env.DL_ID,
+      client_secret: process.env.DL_SECRET, // You need this!
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: process.env.DL_REDIRECT_URI
+    });
+
+    // 2. Fetch User Profile
+    const profile = await axios.get('https://api.digitallocker.gov.in/user', {
+      headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` }
+    });
+
+    // 3. Extract KYC info and redirect to frontend with success
+    // profile.data contains Aadhaar name, etc.
+    res.redirect(`${process.env.CLIENT_URL}/enrollment?kycSuccess=true&name=${profile.data.name}`);
+    
+  } catch (error) {
+    res.redirect(`${process.env.CLIENT_URL}/enrollment?kycSuccess=false`);
+  }
+});
+app.post('/api/admin/enroll-agent', async (req, res) => {
+  const { name, email, password, kyc, secretKey } = req.body;
+
+  // 1. Verify Governance Key
+  if (secretKey !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: "Unauthorized: Invalid Governance Key" });
+  }
+  if (!otpVerified) {
+    return res.status(401).json({ error: "Email not verified via OTP" });
+  }
+  try {
+    // 2. Create the Agent
+    const newAgent = new AuthorizedAgent({
+      name,
+      email,
+      password,
+      kyc
+    });
+
+    await newAgent.save();
+    res.status(201).json({ message: "Agent enrolled successfully." });
+  } catch (error) {
+    console.error("Enrollment Error:", error);
+    res.status(400).json({ error: "Enrollment failed. Email might already exist." });
+  }
+});
+
+app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
+  const { email, password, transferData } = req.body;
 
   try {
-    // 1. Save to the new dedicated collection
-    const newTransfer = new TransferAid({
-      recipientName,
-      amount,
-      note,
-      transactionId,
-      adminId: req.user._id // Ensure your adminAuth middleware attaches user
-    });
-    await newTransfer.save();
+    // 1. Find and Verify Agent
+    const agent = await AuthorizedAgent.findOne({ email });
+    if (!agent || !(await bcrypt.compare(password, agent.password))) {
+      return res.status(401).json({ error: "Invalid Credentials" });
+    }
 
-    // 2. Log to the Ledger for Analytics
-    const target = `${recipientName} - ${note || 'No description'}`;
-    await createLedgerEntry('SPENT', target, parseFloat(amount), transactionId);
+    // 2. Execute Transfer
+    const transactionId = "TXN_" + crypto.randomBytes(8).toString('hex');
+    const newTransfer = new TransferAid({
+      ...transferData,
+      transactionId,
+      agentId: agent._id // Linked to the Authorized Agent
+    });
     
-    res.status(200).json({ message: "Transfer logged in TransferAid and Ledger", transactionId });
+    await newTransfer.save();
+    await createLedgerEntry('SPENT', transferData.recipientName, transferData.amount, transactionId);
+
+    res.status(200).json({ message: "Payment Successful", transactionId });
   } catch (error) {
-    console.error("Transfer Error:", error);
     res.status(500).json({ error: "Transfer failed" });
   }
 });
