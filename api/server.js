@@ -246,9 +246,10 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
       const startDate = new Date(from);
       const endDate = new Date(to);
       // Ensure we include the full duration of the 'to' day
-      endDate.setUTCHours(23, 59, 59, 999);
-      
-      query.timestamp = { $gte: startDate, $lte: endDate };
+     if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+        endDate.setUTCHours(23, 59, 59, 999);
+        query.timestamp = { $gte: startDate, $lte: endDate };
+      }
     }
     if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
       query.actionType = actionType;
