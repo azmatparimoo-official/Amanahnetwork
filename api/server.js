@@ -412,4 +412,10 @@ app.get('/', (req, res) => {
   res.send('Amanah Network Backend is running!');
 });
 const PORT = process.env.PORT || 5000;
+app.get('*', (req, res) => {
+  // Only send this if it's not an API request
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, 'client/dist', 'index.html'));
+  }
+});
 module.exports = app;
