@@ -253,7 +253,11 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
     }
     if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
       query.actionType = { $regex: actionType, $options: 'i' };
-    }
+    } else {
+  // If actionType is 'ALL' or empty, we explicitly ensure the query 
+  // does NOT contain actionType, so it returns all records.
+  delete query.actionType;
+}
     console.log("DEBUG: Database Query:", JSON.stringify(query));
 
     const ledgerEntries = await Ledger.find(query).sort({ timestamp: -1 });
