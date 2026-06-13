@@ -1,5 +1,4 @@
 require('dotenv').config();
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -409,7 +408,7 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
     balance: received - spent
   });
 });
-app.get('/api/data', (req, res) => {
-  res.json({ message: "Hello from the backend!" });
+app.get('/', (req, res) => {
+  res.send('Amanah Network API is running. Use /api/ for endpoints.');
 });
 module.exports = app;
