@@ -304,33 +304,68 @@ app.post('/api/admin/enroll-agent', async (req, res) => {
   }
 });
 
+async function verifyBankAccount(accountNumber, ifsc) {
+  try {
+    // Razorpay's Account Verification API
+    const response = await razorpay.accounts.validate({
+      account_number: accountNumber,
+      ifsc: ifsc,
+      name: "Beneficiary Name" // Ideally, pass the recipient's name here
+    });
+    
+    // Return true if verification is successful
+    return response.status === 'active';
+  } catch (error) {
+    console.error("Razorpay Verification Failed:", error);
+    return false;
+  }
+}
 app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
   const { email, password, transferData } = req.body;
 
   try {
-    // 1. Find and Verify Agent
+    // 1. Verify Agent
     const agent = await AuthorizedAgent.findOne({ email });
     if (!agent || !(await bcrypt.compare(password, agent.password))) {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
 
-    // 2. Execute Transfer
-    const transactionId = "TXN_" + crypto.randomBytes(8).toString('hex');
+    // 2. Bank Verification (Razorpay)
+    const verification = await razorpay.accounts.validate({
+      account_number: transferData.accountNumber,
+      ifsc: transferData.ifscCode,
+      name: transferData.orgName
+    });
+
+    if (verification.status !== 'active') {
+      return res.status(400).json({ error: "Bank account verification failed. Please check details." });
+    }
+
+    // 3. Save to Database
     const newTransfer = new TransferAid({
       ...transferData,
-      transactionId,
-      agentId: agent._id // Linked to the Authorized Agent
+      agentId: agent._id,
+      senderEmail: email
     });
     
     await newTransfer.save();
-    await createLedgerEntry('SPENT', transferData.recipientName, transferData.amount, transactionId);
+    await createLedgerEntry('SPENT', transferData.orgName, transferData.amount, newTransfer._id);
 
-    res.status(200).json({ message: "Payment Successful", transactionId });
+    // 4. Send Email Notification
+    await transporter.sendMail({
+      from: '"Amanah Network" <noreply@amanahnetwork.com>',
+      to: transferData.email,
+      subject: "Donation Disbursement Confirmation",
+      text: `Hello ${transferData.orgName}, your donation of ₹${transferData.amount} has been successfully processed and sent to your account.`
+    });
+
+    res.status(200).json({ message: "Payment Successful", transactionId: newTransfer._id });
+
   } catch (error) {
-    res.status(500).json({ error: "Transfer failed" });
+    console.error("Transfer Error:", error);
+    res.status(500).json({ error: "Transaction processing error: " + error.message });
   }
 });
-
 // Ensure this is ABOVE your app.listen or export
 app.get('/api/admin/ledger', adminAuth, async (req, res) => {
   try {
