@@ -26,7 +26,7 @@ const connectDB = async () => {
 };
 app.use(cors({
   origin: process.env.CLIENT_URL, // Replace with your live Vercel frontend URL
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE','OPTIONS'],
   credentials: true
 }));
 app.use(express.json());
