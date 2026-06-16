@@ -326,8 +326,9 @@ app.post('/api/verify-bank', async (req, res) => {
   
   try {
     const verification = await razorpay.accounts.validate({
-      account_number: accountNumber,
-      ifsc: ifsc
+      account_number: transferData.accountNumber,
+      ifsc: transferData.ifscCode,
+      name: transferData.orgName
     });
 
     if (verification.status === 'active') {
