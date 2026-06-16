@@ -319,7 +319,27 @@ async function verifyBankAccount(accountNumber, ifsc) {
     console.error("Razorpay Verification Failed:", error);
     return false;
   }
-}
+} 
+// Add this to your server file
+app.post('/api/verify-bank', async (req, res) => {
+  const { accountNumber, ifsc } = req.body;
+  
+  try {
+    const verification = await razorpay.accounts.validate({
+      account_number: accountNumber,
+      ifsc: ifsc
+    });
+
+    if (verification.status === 'active') {
+      res.status(200).json({ valid: true });
+    } else {
+      res.status(400).json({ valid: false });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Verification service unavailable" });
+  }
+});
+
 app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
   const { email, password, transferData } = req.body;
 
