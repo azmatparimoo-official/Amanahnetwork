@@ -326,6 +326,11 @@ app.post('/api/verify-bank', async (req, res) => {
   console.log("Razorpay Key:", process.env.RAZORPAY_KEY_ID ? "Exists" : "MISSING");
 
   const { accountNumber, ifsc } = req.body;
+
+  if (process.env.MOCK_BANK_VERIFICATION === 'true') {
+    console.log("Mocking bank verification for account:", accountNumber);
+    return res.status(200).json({ valid: true });
+  }
   
   try {
     const verification = await razorpay.accounts.validate({
