@@ -331,7 +331,7 @@ app.post('/api/verify-bank', async (req, res) => {
     console.log("Mocking bank verification for account:", accountNumber);
     return res.status(200).json({ valid: true });
   }
-  
+
   try {
     const verification = await razorpay.accounts.validate({
       account_number: transferData.accountNumber,
@@ -384,7 +384,7 @@ app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
 
     // 4. Send Email Notification
     await transporter.sendMail({
-      from: '"Amanah Network" <noreply@amanahnetwork.com>',
+      from: process.env.EMAIL_USER,
       to: transferData.email,
       subject: "Donation Disbursement Confirmation",
       text: `Hello ${transferData.orgName}, your donation of ₹${transferData.amount} has been successfully processed and sent to your account.`
