@@ -322,6 +322,9 @@ async function verifyBankAccount(accountNumber, ifsc) {
 } 
 // Add this to your server file
 app.post('/api/verify-bank', async (req, res) => {
+        
+  console.log("Razorpay Key:", process.env.RAZORPAY_KEY_ID ? "Exists" : "MISSING");
+
   const { accountNumber, ifsc } = req.body;
   
   try {
@@ -357,7 +360,7 @@ app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
       ifsc: transferData.ifscCode,
       name: transferData.orgName
     });
-    
+
     console.log("Full Razorpay Response:", JSON.stringify(verification, null, 2));
 
     if (verification.status !== 'active') {
