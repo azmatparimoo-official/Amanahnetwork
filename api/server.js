@@ -357,6 +357,8 @@ app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
       ifsc: transferData.ifscCode,
       name: transferData.orgName
     });
+    
+    console.log("Full Razorpay Response:", JSON.stringify(verification, null, 2));
 
     if (verification.status !== 'active') {
       return res.status(400).json({ error: "Bank account verification failed. Please check details." });
