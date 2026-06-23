@@ -21,8 +21,8 @@ import User from '../models/User.js';
 import Donation from '../models/Donation.js';
 import TransferAid from '../models/TransferAid.js';
 import AuthorizedAgent from '../models/AuthorizedAgent.js';
-const otpStore = {};
 const app = express();
+const otpStore = {};
 let isConnected = false;
 // Add this helper function at the top of your file
 const connectDB = async () => {
