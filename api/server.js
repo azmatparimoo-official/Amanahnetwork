@@ -459,7 +459,7 @@ app.post(process.env.SECRET_TRANSFER_PATH,
 });
 app.post('/api/admin/verify-vault', (req, res) => {
   const { key } = req.body;
-  if (key === process.env.VISION_PATH) {
+  if (key === process.env.ADMIN_KEY) {
     // We can even set a short-lived "vault-access" cookie here
     return res.status(200).json({ unlocked: true });
   }
