@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+import mongoose from 'mongoose'; // Use ES Module import
 const DonationSchema = new mongoose.Schema({
   donorEmail: { type: String, required: true, lowercase: true },
   donorName: { type: String, required: true },
@@ -12,5 +11,5 @@ const DonationSchema = new mongoose.Schema({
   currency: { type: String, default: 'INR' }
 }, { timestamps: true });
 
-const DonationSchema = mongoose.model('Donation', DonationSchema);
+const Donation = mongoose.model('Donation', DonationSchema);
 export default DonationSchema;

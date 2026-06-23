@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose'; // Use ES Module import
+// 
 const UserSchema = new mongoose.Schema({
   firstName: { type: String, required: true, trim: true },
   lastName: { type: String, required: true, trim: true },
@@ -9,5 +10,5 @@ const UserSchema = new mongoose.Schema({
   verificationToken: { type: String }
 }, { timestamps: true });
 
-const UserSchema = mongoose.model('User', UserSchema);
+const User = mongoose.model('User', UserSchema);
 export default UserSchema;

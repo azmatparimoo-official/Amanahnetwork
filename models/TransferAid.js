@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+import mongoose from 'mongoose'; // Use ES Module import
 const TransferAidSchema = new mongoose.Schema({
   // Receiving Org Details
   orgName: { type: String, required: true },
@@ -21,5 +20,5 @@ const TransferAidSchema = new mongoose.Schema({
   authorizedAt: { type: Date, default: Date.now }
 });
 
-const TransferAidSchema = mongoose.model('TransferAid', TransferAidSchema);
+const TransferAid = mongoose.model('TransferAid', TransferAidSchema);
 export default TransferAidSchema;

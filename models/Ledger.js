@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+import mongoose from 'mongoose'; // Use ES Module import
 // Define the schema using the variable name 'ledgerSchema'
 const ledgerSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
@@ -14,5 +13,5 @@ const ledgerSchema = new mongoose.Schema({
 });
 
 // Export using the SAME variable name 'ledgerSchema'
-const ledgerSchema = mongoose.model('Ledger', ledgerSchema);
+const ledger = mongoose.model('Ledger', ledgerSchema);
 export default ledgerSchema;
