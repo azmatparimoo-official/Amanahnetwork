@@ -27,4 +27,5 @@ AuthorizedAgentSchema.pre('save', async function(next) {
   next();
 });
 
-module.exports = mongoose.model('AuthorizedAgent', AuthorizedAgentSchema);
+const AuthorizedAgent = mongoose.model('AuthorizedAgent', AuthorizedAgentSchema);
+export default AuthorizedAgent;

@@ -12,4 +12,5 @@ const DonationSchema = new mongoose.Schema({
   currency: { type: String, default: 'INR' }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Donation', DonationSchema);
+const DonationSchema = mongoose.model('Donation', DonationSchema);
+export default DonationSchema;

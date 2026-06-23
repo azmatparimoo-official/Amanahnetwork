@@ -14,4 +14,5 @@ const ledgerSchema = new mongoose.Schema({
 });
 
 // Export using the SAME variable name 'ledgerSchema'
-module.exports = mongoose.model('Ledger', ledgerSchema);
+const ledgerSchema = mongoose.model('Ledger', ledgerSchema);
+export default ledgerSchema;

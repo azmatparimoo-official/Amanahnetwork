@@ -8,4 +8,5 @@ const AuditLogSchema = new mongoose.Schema({
   status: String,    // 'SUCCESS' or 'FAILED'
   timestamp: { type: Date, default: Date.now }
 });
-module.exports = mongoose.model('AuditLog', AuditLogSchema);
+const AuditlogSchema = mongoose.model('AuditLog', AuditLogSchema);
+export default AuditLogSchema;

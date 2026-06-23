@@ -21,4 +21,5 @@ const TransferAidSchema = new mongoose.Schema({
   authorizedAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('TransferAid', TransferAidSchema);
+const TransferAidSchema = mongoose.model('TransferAid', TransferAidSchema);
+export default TransferAidSchema;

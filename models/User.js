@@ -9,4 +9,5 @@ const UserSchema = new mongoose.Schema({
   verificationToken: { type: String }
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', UserSchema);
+const UserSchema = mongoose.model('User', UserSchema);
+export default UserSchema;
