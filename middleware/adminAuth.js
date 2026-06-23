@@ -26,5 +26,8 @@ const adminAuth = async (req, res, next) => {
   }
   
   res.status(403).json({ error: "Access Denied. Verification required." });
+// In your backend middleware/adminAuth.js
+console.log("Expected Key:", process.env.ADMIN_KEY);
+console.log("Received Key:", req.headers['x-governance-key']);
 };
 export default adminAuth;
