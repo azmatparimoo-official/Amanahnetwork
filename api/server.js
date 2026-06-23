@@ -10,6 +10,10 @@ const adminAuth = require('../middleware/adminAuth');
 const isAdmin = require('../middleware/adminAuth');
 const Ledger = require('../models/Ledger');
 const { Resend } = require('resend');
+const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const helmet = require('helmet'); // New: Add 'helmet' for security headers
+const { body, validationResult } = require('express-validator');
 // Import Schemas
 const User = require('../models/User');
 const Donation = require('../models/Donation');
@@ -29,7 +33,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE','OPTIONS'],
   credentials: true
 }));
-app.use(express.json());
+app.use(helmet()); // Apply security headers
+app.use(cookieParser());
+app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -60,6 +66,18 @@ transporter.verify((error, success) => {
     console.log("✅ Email Transporter is ready to send messages");
   }
 });
+const session = await mongoose.startSession();
+session.startTransaction();
+try {
+  await newDonation.save({ session });
+  await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id, session);
+  await session.commitTransaction();
+} catch (error) {
+  await session.abortTransaction();
+  throw error;
+} finally {
+  session.endSession();
+}
 // --- ADMIN ROUTES ---
 // --- ADMIN ROUTES ---
 // Tailored line 43: Using an anonymous function wrapper to prevent the "handler" error
@@ -81,19 +99,36 @@ app.post('/api/admin/create-member', (req, res, next) => {
 // --- AUTHENTICATION ---
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email } = req.body;
-    
-    // Check if DB is connected (simple ping)
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ error: "Database not connected yet. Please wait." });
+    const { email, password } = req.body;
+
+    // 1. Basic validation
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
     }
 
+    // 2. Fetch User
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(401).json({ error: "Access Denied. Identity not found." });
     
-    res.status(200).json({ message: "Auth successful", user });
+    // 3. Verify Identity AND Password
+    // bcrypt.compare safely compares the input against the stored hash
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: "Invalid Credentials" });
+    }
+
+    // 4. Generate JWT
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // 5. Set HttpOnly Cookie
+    res.cookie('token', token, {
+      httpOnly: true, // Prevents XSS-based token theft
+      secure: process.env.NODE_ENV === 'production', // Use true for HTTPS
+      sameSite: 'strict', // Protects against CSRF
+      maxAge: 3600000 // 1 hour
+    });
+
+    res.status(200).json({ message: "Logged in successfully" });
   } catch (error) {
-    console.error("Login Error:", error); // This will tell us the exact line causing the 500
+    console.error("Login Error:", error);
     res.status(500).json({ error: "Internal Auth Error." });
   }
 });
@@ -171,6 +206,8 @@ const sendDonationEmail = async (donorEmail, amount) => {
 
 // Ensure you have 'let isConnected = false;' defined at the top level of your server.js
 app.post("/api/payment/verify", async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     // 1. Database Connection Caching
     if (!isConnected) {
@@ -218,18 +255,24 @@ app.post("/api/payment/verify", async (req, res) => {
         paymentId:razorpay_payment_id, 
         status: "SUCCESS" 
         });
-        await newDonation.save();
-        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id);
-        // 6. Async Email (Fire and forget)
+       
+        await newDonation.save({session});
+        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id,session);
+        await session.commitTransaction();
         sendDonationEmail(donorEmail, amount);
         
-        return res.status(200).json({ status: "success", message: "Donation verified and captured." });
+        return res.status(200).json({ status: "success", message: "Donation verified." });
     } else {
-        return res.status(400).json({ error: "Payment not captured by provider" });
+        await session.abortTransaction();
+        return res.status(400).json({ error: "Payment not captured" });
     }
   } catch (error) {
-    console.error("Verification Error:", error);
+    // If anything fails, undo all changes
+    await session.abortTransaction();
+    console.error("Transaction Aborted:", error);
     return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    session.endSession();
   }
 });
   app.post('/api/auth/send-otp', async (req, res) => {
@@ -241,9 +284,12 @@ app.post("/api/payment/verify", async (req, res) => {
 });
 
 app.post('/api/auth/verify-otp', (req, res) => {
-  const { email, otp } = req.body;
-  if (otpStore[email] === otp) return res.json({ verified: true });
-  res.status(400).json({ error: "Invalid OTP" });
+    const { email, otp } = req.body;
+    if (otpStore[email] === otp) {
+        otpStore[email] = { verified: true }; // Store a status, not just the code
+        return res.json({ verified: true });
+    }
+    res.status(400).json({ error: "Invalid OTP" });
 });
 app.get('/api/auth/digilocker', (req, res) => {
   const authUrl = `https://api.digitallocker.gov.in/authorize?client_id=${process.env.DL_ID}&response_type=code`;
@@ -277,16 +323,22 @@ app.get('/api/auth/digilocker/callback', async (req, res) => {
     res.redirect(`${process.env.CLIENT_URL}/enrollment?kycSuccess=false`);
   }
 });
-app.post('/api/admin/enroll-agent', async (req, res) => {
+app.post('/api/admin/enroll-agent', 
+  [body('email').isEmail().normalizeEmail(),
+  body('name').trim().escape()],
+  async (req, res) => {
+    const errors = validationResult(req);
+  if (!errors.isEmpty())
+   return res.status(400).json({ errors: errors.array() });
   const { name, email, password, kyc, secretKey } = req.body;
 
   // 1. Verify Governance Key
   if (secretKey !== process.env.ADMIN_KEY) {
     return res.status(403).json({ error: "Unauthorized: Invalid Governance Key" });
   }
-  if (!otpVerified) {
+  if (!otpStore[req.body.email]?.verified) {
     return res.status(401).json({ error: "Email not verified via OTP" });
-  }
+}
   try {
     // 2. Create the Agent
     const newAgent = new AuthorizedAgent({
@@ -348,8 +400,27 @@ app.post('/api/verify-bank', async (req, res) => {
     res.status(500).json({ error: "Verification service unavailable" });
   }
 });
-
-app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
+const transferLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per window
+  message: "Too many transfer attempts, please try again later."
+});
+app.use(process.env.SECRET_TRANSFER_PATH, transferLimiter);
+app.post(process.env.SECRET_TRANSFER_PATH,
+  [
+    body('email').isEmail().normalizeEmail(),
+  body('transferData.accountNumber').isLength({ min: 9, max: 18 }).isNumeric(),
+  body('transferData.ifscCode').isLength({ min: 11, max: 11 }).trim().escape(),
+  body('transferData.orgName').trim().escape(),
+  body('transferData.amount').isNumeric().toFloat()
+  ],
+   async (req, res) => {
+    const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
   const { email, password, transferData } = req.body;
 
   try {
@@ -365,9 +436,6 @@ app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
       ifsc: transferData.ifscCode,
       name: transferData.orgName
     });
-
-    console.log("Full Razorpay Response:", JSON.stringify(verification, null, 2));
-
     if (verification.status !== 'active') {
       return res.status(400).json({ error: "Bank account verification failed. Please check details." });
     }
@@ -379,8 +447,9 @@ app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
       senderEmail: email || "networkamanah60@gmail.com"
     });
     
-    await newTransfer.save();
-    await createLedgerEntry('SPENT', transferData.orgName, transferData.amount, newTransfer._id);
+    await newTransfer.save({session});
+    await createLedgerEntry('SPENT', transferData.orgName, transferData.amount, newTransfer._id, session);
+    await session.commitTransaction();
 
     // 4. Send Email Notification
     await transporter.sendMail({
@@ -392,10 +461,26 @@ app.post(process.env.SECRET_TRANSFER_PATH, async (req, res) => {
 
     res.status(200).json({ message: "Payment Successful", transactionId: newTransfer._id });
 
-  } catch (error) {
-    console.error("Transfer Error:", error);
-    res.status(500).json({ error: "Transaction processing error: " + error.message });
+  } catch (error){ // 5. Rollback on any failure
+    console.error("Transfer Transaction Aborted:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    session.endSession();
   }
+});
+app.post('/api/admin/verify-vault', (req, res) => {
+  const { key } = req.body;
+  if (key === process.env.VISION_PATH) {
+    // We can even set a short-lived "vault-access" cookie here
+    return res.status(200).json({ unlocked: true });
+  }
+  res.status(403).json({ error: "Invalid Governance Key" });
+});
+// Add this route to server.js
+app.get('/api/admin/check-access', adminAuth, (req, res) => {
+  // adminAuth middleware already verified the JWT and user role.
+  // If we reach this line, the user is authorized.
+  res.status(200).json({ authorized: true });
 });
 // Ensure this is ABOVE your app.listen or export
 app.get('/api/admin/ledger', adminAuth, async (req, res) => {
@@ -428,9 +513,8 @@ app.get('/api/admin/ledger', adminAuth, async (req, res) => {
     res.status(500).json({ message: "Error fetching ledger", error: error.message });
   }
 });
-
 // A central helper to keep your code DRY
-async function createLedgerEntry(actionType, target, amount, transactionId) {
+async function createLedgerEntry(actionType, target, amount, transactionId, session) {
   // Add this validation check
   if (!target || !amount || !transactionId) {
     console.error("Ledger Save Failed: Missing fields", { target, amount, transactionId });
@@ -444,10 +528,11 @@ async function createLedgerEntry(actionType, target, amount, transactionId) {
       transactionId,
       timestamp: new Date()
     });
-    return await newEntry.save();
+    return await newEntry.save({session});
     console.log("Ledger entry saved successfully");
   } catch (err) {
-    console.error("Ledger Save Error:", err); // This helps debug exactly what field is missing
+    console.error("Ledger Save Error:", err);
+    throw err; // This helps debug exactly what field is missing
   }
 }
 // --- DONATIONS 
