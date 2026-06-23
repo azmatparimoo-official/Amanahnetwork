@@ -1,25 +1,26 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const Razorpay = require('razorpay');
-const axios = require('axios');
-const adminAuth = require('../middleware/adminAuth');
-const isAdmin = require('../middleware/adminAuth');
-const Ledger = require('../models/Ledger');
-const { Resend } = require('resend');
-const rateLimit = require('express-rate-limit');
-const cookieParser = require('cookie-parser');
-const helmet = require('helmet'); // New: Add 'helmet' for security headers
-const { body, validationResult } = require('express-validator');
-// Import Schemas
-const User = require('../models/User');
-const Donation = require('../models/Donation');
-const TransferAid = require('../models/TransferAid');
-const bcrypt = require('bcryptjs');
-const AuthorizedAgent = require('../models/AuthorizedAgent');
+// REPLACE ALL 'require' WITH 'import'
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import mongoose from 'mongoose';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import axios from 'axios';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import { body, validationResult } from 'express-validator';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { Resend } from 'resend';
+import rateLimit from 'express-rate-limit';
+// Keep your imports for internal files
+import adminAuth from '../middleware/adminAuth.js'; // Note: Must include .js extension
+import Ledger from '../models/Ledger.js';
+import User from '../models/User.js';
+import Donation from '../models/Donation.js';
+import TransferAid from '../models/TransferAid.js';
+import AuthorizedAgent from '../models/AuthorizedAgent.js';
 const otpStore = {};
 const app = express();
 let isConnected = false;
@@ -66,18 +67,6 @@ transporter.verify((error, success) => {
     console.log("✅ Email Transporter is ready to send messages");
   }
 });
-const session = await mongoose.startSession();
-session.startTransaction();
-try {
-  await newDonation.save({ session });
-  await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id, session);
-  await session.commitTransaction();
-} catch (error) {
-  await session.abortTransaction();
-  throw error;
-} finally {
-  session.endSession();
-}
 // --- ADMIN ROUTES ---
 // --- ADMIN ROUTES ---
 // Tailored line 43: Using an anonymous function wrapper to prevent the "handler" error
@@ -562,4 +551,4 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
 app.get('/', (req, res) => {
   res.send('Amanah Network API is running. Use /api/ for endpoints.');
 });
-module.exports = app;
+export default app;
