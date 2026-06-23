@@ -1,4 +1,4 @@
-const User = require('../models/User');
+import User from '../models/User.js';
 
 const adminAuth = async (req, res, next) => {
   // Extract headers
@@ -27,5 +27,4 @@ const adminAuth = async (req, res, next) => {
   
   res.status(403).json({ error: "Access Denied. Verification required." });
 };
-
-module.exports = adminAuth;
+export default adminAuth;
